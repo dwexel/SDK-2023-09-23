@@ -30,7 +30,7 @@ namespace { // anon namespace local classes for good measure
 
 				// always do this in every timeconsuming loop
 				// will throw exception_aborted if the user pushed 'cancel' on us
-				p_abort.check(); 
+				p_abort.check();
 
 				const char * inPath = m_lstFiles[fileWalk];
 				p_status.set_progress(fileWalk, m_lstFiles.get_size());
@@ -44,11 +44,53 @@ namespace { // anon namespace local classes for good measure
 				} catch(std::exception const & e) {
 					m_errorLog << "Could not copy: " << file_path_display(inPath) << ", reason: " << e << "\n";
 				}
-				
+			}
+
+			try {
+				writeRelativePlaylist(p_abort);
+			} catch (exception_aborted) {
+				throw;
+			} catch (std::exception const& e) {
+				m_errorLog << "Could not write playlist file:" << " temp_name.m3u8" << e;
 			}
 		}
 
-		void workWithFile( const char * inPath, abort_callback & abort ) {
+		void writeRelativePlaylist(abort_callback& abort) {
+			pfc::string8 outFn = "temp_name.m3u8";
+
+			pfc::string8 outPath = m_pathTo;
+			// Suffix with outFS path separator. On Windows local filesystem this is always a backslash.
+			outPath.end_with(m_outFS->pathSeparator());
+			outPath += outFn;
+
+			const double openTimeout = 1.0;
+
+			// Required to write to files being currently played.
+			// See file_lock_manager documentation for details.
+			// might not needed
+			auto outLock = file_lock_manager::get()->acquire_write(outPath, abort);
+
+			pfc::string8 payload = m_playlistContent;
+
+			if (!payload.is_valid_utf8()) {
+				// there was an error putting utf-8 text in the m3u8 file
+				// why might that be?
+				throw;
+			}
+
+
+
+			size_t p_size = payload.get_length();
+
+			if (p_size > 0) {
+				FB2K_console_formatter() << "Playlist contents:" << payload;
+
+				m_outFS->rewrite_file(outPath, abort, openTimeout, payload, p_size);
+			}
+		}
+
+
+		void workWithFile(const char* inPath, abort_callback& abort) {
 			FB2K_console_formatter() << "File: " << file_path_display(inPath);
 
 			// Filesystem API for inPath
@@ -82,20 +124,21 @@ namespace { // anon namespace local classes for good measure
 					FB2K_console_formatter() << "Last modified: " << format_filetimestamp(stats.m_timestamp);
 				}
 				pfc::string8 contentType;
-				if ( inFile->get_content_type( contentType ) ) {
+				if (inFile->get_content_type(contentType)) {
 					FB2K_console_formatter() << "Content type: " << contentType;
 				}
 
 				uint8_t buffer[256];
 				size_t got = inFile->read(buffer, sizeof(buffer), abort);
 
-				if ( got > 0 ) {
-					FB2K_console_formatter() << "Header bytes: " << pfc::format_hexdump( buffer, got );
+				if (got > 0) {
+					FB2K_console_formatter() << "Header bytes: " << pfc::format_hexdump(buffer, got);
 				}
 
-				if ( inFile->is_remote() ) {
+				if (inFile->is_remote()) {
 					FB2K_console_formatter() << "File is remote";
-				} else {
+				}
+				else {
 					FB2K_console_formatter() << "File is local";
 				}
 
@@ -105,7 +148,7 @@ namespace { // anon namespace local classes for good measure
 			}
 
 			// This is a glorified strcmp() for file paths.
-			if ( metadb::path_compare( inPath, outPath ) == 0 ) {
+			if (metadb::path_compare(inPath, outPath) == 0) {
 				// Same path, go no further. Specifically don't attempt acquiring a writelock because that will never complete, unless user aborted.
 				FB2K_console_formatter() << "Input and output paths are the same - not copying!";
 				return;
@@ -113,19 +156,20 @@ namespace { // anon namespace local classes for good measure
 
 			// Required to write to files being currently played.
 			// See file_lock_manager documentation for details.
-			auto outLock = file_lock_manager::get()->acquire_write( outPath, abort );
+			auto outLock = file_lock_manager::get()->acquire_write(outPath, abort);
 
 			// WARNING : if a file exists at outPath prior to this, it will be reset to zero bytes (win32 CREATE_ALWAYS semantics)
 			auto outFile = m_outFS->openWriteNew(outPath, abort, openTimeout);
 
-			
+
 
 			try {
 				// Refer to g_transfer_file implementation details in the SDK for lowlevel reading & writing details
 				file::g_transfer_file(inFile, outFile, abort);
-			} catch(...) {
+			}
+			catch (...) {
 
-				if ( inFile->is_remote() ) {
+				if (inFile->is_remote()) {
 					// Remote file was being downloaded? Suppress deletion of incomplete output
 					throw;
 				}
@@ -135,27 +179,35 @@ namespace { // anon namespace local classes for good measure
 
 				// .. and delete the incomplete file
 				try {
-					auto & noAbort = fb2k::noAbort; // we might be being aborted, don't let that prevent deletion
-					m_outFS->remove( outPath, noAbort );
-				} catch(...) {
+					auto& noAbort = fb2k::noAbort; // we might be being aborted, don't let that prevent deletion
+					m_outFS->remove(outPath, noAbort);
+				}
+				catch (...) {
 					// disregard errors - just report original copy error
 				}
 
 				throw; // rethrow the original copy error
 			}
 
+			// inFN == outFN
+			// at this point, assume file copying has succeeded
+			m_playlistContent.add_string(inFN, inFN.get_length());
+			m_playlistContent.add_char('\n');
+
+			FB2K_console_formatter() << "Out File: \n" << outPath << "\n";
 		}
-		
+
 		void on_done(ctx_t p_wnd, bool p_was_aborted) override {
 			// All done, main thread again
 
-			if (! p_was_aborted && m_errorLog.length() > 0 ) {
+			if (!p_was_aborted && m_errorLog.length() > 0) {
 				popup_message::g_show(m_errorLog, "Information");
 			}
-
 		}
 
-		
+		// used for writing playlist
+		pfc::string8 m_playlistContent;
+
 
 		// This is a helper class that generates a sorted list of unique file paths in this metadb_handle_list.
 		// The metadb_handle_list might contain duplicate tracks or multiple subsongs in the same file. m_lstFiles will list each file only once.
@@ -172,14 +224,14 @@ namespace { // anon namespace local classes for good measure
 }
 
 void RunCopyFilesHere(metadb_handle_list_cref data, const char * copyTo, fb2k::hwnd_t wndParent) {
-    
-    // Create worker object, a threaded_process_callback implementation.
-    auto worker = fb2k::service_new<tpc_copyFiles>(data, copyTo);
-    const uint32_t flags = threaded_process::flag_show_abort | threaded_process::flag_show_progress | threaded_process::flag_show_item;
-    // Start the process asynchronously.
+
+	// Create worker object, a threaded_process_callback implementation.
+	auto worker = fb2k::service_new<tpc_copyFiles>(data, copyTo);
+	const uint32_t flags = threaded_process::flag_show_abort | threaded_process::flag_show_progress | threaded_process::flag_show_item;
+	// Start the process asynchronously.
     threaded_process::get()->run_modeless( worker, flags, wndParent, "Sample Component: Copying Files" );
-    
-    // Our worker is now running.
+
+	// Our worker is now running.
 }
 void RunCopyFiles(metadb_handle_list_cref data) {
 
@@ -193,21 +245,21 @@ void RunCopyFiles(metadb_handle_list_cref data) {
 	pfc::string8 copyTo;
 	// shared.dll method
 	if (!uBrowseForFolder( wndParent, "Choose destination folder", copyTo )) return;
-	
-    // shared.dll methods are win32 API wrappers and return plain paths with no protocol prepended
-    // Prefix with file:// before passing to fb2k filesystem methods.
-    // Actually the standard fb2k filesystem implementation recognizes paths even without the prefix, but we enforce it here as a good practice.
-    pfc::string8 copyTo2 = PFC_string_formatter() << "file://" << copyTo;
 
-    RunCopyFilesHere(data, copyTo2, wndParent);
+	// shared.dll methods are win32 API wrappers and return plain paths with no protocol prepended
+	// Prefix with file:// before passing to fb2k filesystem methods.
+	// Actually the standard fb2k filesystem implementation recognizes paths even without the prefix, but we enforce it here as a good practice.
+	pfc::string8 copyTo2 = PFC_string_formatter() << "file://" << copyTo;
+
+	RunCopyFilesHere(data, copyTo2, wndParent);
 #else
     auto tracksCopy = std::make_shared<metadb_handle_list>( data );
-    auto setup = fb2k::fileDialog::get()->setupOpenFolder();
-    setup->setTitle("Choose destination folder");
+	auto setup = fb2k::fileDialog::get()->setupOpenFolder();
+	setup->setTitle("Choose destination folder");
     setup->runSimple( [tracksCopy] (fb2k::stringRef path) {
-        RunCopyFilesHere(*tracksCopy, path->c_str(), core_api::get_main_window());
+		RunCopyFilesHere(*tracksCopy, path->c_str(), core_api::get_main_window());
     } );
-    
+
 #endif
 }
 
@@ -221,7 +273,7 @@ namespace {
 		void on_init(ctx_t p_wnd) override {
 			// Main thread, called before run() gets started
 		}
-		void run(threaded_process_status & p_status, abort_callback & p_abort) override {
+		void run(threaded_process_status& p_status, abort_callback& p_abort) override {
 			// Worker thread
 
 			// Note:
@@ -283,7 +335,7 @@ namespace {
 					FB2K_console_formatter() << "Last-modified before tag update: " << format_filetimestamp_utc(stats.m_timestamp);
 				}
 			}
-			
+
 			file_info_impl info;
 			writer->get_info( subsong, info, abort );
 
@@ -296,7 +348,7 @@ namespace {
 
 			// This can be called many times for files with multiple subsongs
 			writer->set_info( subsong, info, noAbort );
-			
+
 			// This is called once - when we're done set_info()'ing
 			writer->commit( noAbort );
 
@@ -327,7 +379,7 @@ namespace {
 	};
 }
 void RunAlterTagsLL(metadb_handle_list_cref data) {
-	
+
 	const auto wndParent = core_api::get_main_window();
 
 	// Our worker object, a threaded_process_callback subclass.
