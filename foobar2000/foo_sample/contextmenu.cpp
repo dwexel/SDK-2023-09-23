@@ -14,6 +14,7 @@ static void RunTestCommand(metadb_handle_list_cref data);
 void RunCalculatePeak(metadb_handle_list_cref data); //decode.cpp
 
 void RunCopyFiles(metadb_handle_list_cref data); // IO.cpp
+void RunLinkFiles(metadb_handle_list_cref data); // IO.cpp
 void RunAlterTagsLL(metadb_handle_list_cref data); // IO.cpp
 
 void RunUIAndThreads( metadb_handle_list_cref data ); // ui_and_threads.cpp
@@ -57,6 +58,7 @@ public:
 		cmd_test1 = 0,
 		cmd_peak,
 		cmd_copyFiles,
+		cmd_linkFiles,
 		cmd_alterTags,
 		cmd_alterTagsLL,
 		cmd_uiAndThreads,
@@ -69,6 +71,7 @@ public:
 			case cmd_test1: p_out = "Test command"; break;
 			case cmd_peak: p_out = "Calculate peak"; break;
 			case cmd_copyFiles: p_out = "Copy files"; break;
+			case cmd_linkFiles: p_out = "Link files"; break;
 			case cmd_alterTags: p_out = "Alter tags"; break;
 			case cmd_alterTagsLL: p_out = "Alter tags (low level)"; break;
 			case cmd_uiAndThreads: p_out = "UI and threads demo"; break;
@@ -85,6 +88,9 @@ public:
 				break;
 			case cmd_copyFiles:
 				RunCopyFiles(p_data);
+				break;
+			case cmd_linkFiles:
+				RunLinkFiles(p_data);
 				break;
 			case cmd_alterTags:
 				RunAlterTags(p_data);
@@ -118,6 +124,7 @@ public:
 		static const GUID guid_test1 = { 0x4021c80d, 0x9340, 0x423b, { 0xa3, 0xe2, 0x8e, 0x1e, 0xda, 0x87, 0x13, 0x7f } };
 		static const GUID guid_peak = { 0xe629b5c3, 0x5af3, 0x4a1e, { 0xa0, 0xcd, 0x2d, 0x5b, 0xff, 0xa6, 0x4, 0x58 } };
 		static const GUID guid_copyFiles = { 0x7f8a6569, 0xe46b, 0x4698, { 0xaa, 0x30, 0xc4, 0xc1, 0x44, 0xc9, 0xc8, 0x92 } };
+		static const GUID guid_linkFiles = { 0x1d3c3fe9, 0x9ed3, 0x4539, { 0xbe, 0x31, 0x64, 0xb9, 0x68, 0xf0, 0x4, 0x40  } };
 		static const GUID guid_alterTags = { 0xdfb8182b, 0xf8f3, 0x4ce9, { 0xae, 0xf6, 0x8e, 0x4e, 0x51, 0x7c, 0x2d, 0x3 } };
 		static const GUID guid_alterTagsLL = { 0x6b43324d, 0x6cb2, 0x42a6, { 0xbf, 0xc, 0xd9, 0x43, 0xfc, 0x83, 0x2f, 0x39 } };
 		static const GUID guid_uiAndThreads = { 0x30dace2e, 0xcccf, 0x41d4, { 0x8c, 0x24, 0x57, 0xec, 0xf4, 0xa0, 0xd9, 0xc9 } };
@@ -126,6 +133,7 @@ public:
 			case cmd_test1: return guid_test1;
 			case cmd_peak: return guid_peak;
 			case cmd_copyFiles: return guid_copyFiles;
+			case cmd_linkFiles: return guid_linkFiles;
 			case cmd_alterTags: return guid_alterTags;
 			case cmd_alterTagsLL: return guid_alterTagsLL;
 			case cmd_uiAndThreads: return guid_uiAndThreads;
@@ -143,6 +151,9 @@ public:
 				return true;
 			case cmd_copyFiles:
 				p_out = "This is a sample command that copies the selected tracks to another location.";
+				return true;
+			case cmd_linkFiles:
+				p_out = "This does the same thing as the copy files command but hard links them instead";
 				return true;
 			case cmd_alterTags:
 				p_out = "This is a sample command that performs tag manipulation on the files.";
