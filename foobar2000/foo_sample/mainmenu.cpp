@@ -2,6 +2,7 @@
 
 #include "playback_stream_capture.h"
 
+
 // I am foo_sample and these are *my* GUIDs
 // Make your own when reusing code or else
 static const GUID guid_mainmenu_group_id = { 0x44963e7a, 0x4b2a, 0x4588, { 0xb0, 0x17, 0xa8, 0x69, 0x18, 0xcb, 0x8a, 0xa5 } };
@@ -13,6 +14,10 @@ static const GUID guid_listcontrol_simple = { 0x34664996, 0x54cd, 0x48eb, { 0xa8
 static const GUID guid_listcontrol_ownerdata = { 0xc6d23696, 0x4be5, 0x4daa, { 0xaf, 0xb2, 0x35, 0x14, 0xa, 0x47, 0xd2, 0xf9 } };
 static const GUID guid_playback_stream_capture = { 0x3d0f0f1a, 0x6b5f, 0x42e3, { 0xa4, 0x6d, 0x49, 0x1, 0x3, 0xf0, 0x54, 0xb2 } };
 
+static const GUID guid_exp_l = { 0x15713569, 0x8d2b, 0x4916, { 0xa3, 0x3b, 0xc6, 0x1e, 0x84, 0x33, 0x8f, 0x53 } };
+static const GUID guid_exp_c = { 0x279db8a3, 0x47f9, 0x48b8, { 0x90, 0x16, 0x8a, 0x47, 0xf6, 0xd0, 0x5, 0xa7 } };
+
+
 
 static mainmenu_group_popup_factory g_mainmenu_group(guid_mainmenu_group_id, mainmenu_groups::file, mainmenu_commands::sort_priority_dontcare, "Sample component");
 
@@ -21,6 +26,36 @@ void RunIOTest(); // IO.cpp
 void RunListControlSimpleDemo(); // listcontrol-simple.cpp
 void RunListControlOwnerDataDemo(); // listcontrol-ownerdata.cpp
 void RunListControlAdvancedDemo(); // listcontrol-advanced.cpp
+
+void ExportPlaylistLinked() {
+	metadb_handle_list pl;
+	playlist_manager::get()->activeplaylist_get_all_items(pl);
+
+	// copied from the contextmenu.cpp
+	// get GUID by name?
+	// use the language to get it?
+	static const GUID guid_linkFiles = { 0x1d3c3fe9, 0x9ed3, 0x4539, { 0xbe, 0x31, 0x64, 0xb9, 0x68, 0xf0, 0x4, 0x40  } };
+
+	menu_helpers::run_command_context_ex(guid_linkFiles, pfc::guid_null, pl, guid_exp_l);
+
+	pfc::string8 name;
+	playlist_manager::get()->activeplaylist_get_name(name);
+	popup_message::g_show(fb2k::formatTrackList(pl), name);
+}
+
+
+void ExportPlaylistCopy() {
+	metadb_handle_list pl;
+	playlist_manager::get()->activeplaylist_get_all_items(pl);
+
+	// ditto
+	static const GUID guid_copyFiles = { 0x7f8a6569, 0xe46b, 0x4698, { 0xaa, 0x30, 0xc4, 0xc1, 0x44, 0xc9, 0xc8, 0x92 } };
+
+	pfc::string8 name;
+	playlist_manager::get()->activeplaylist_get_name(name);
+	popup_message::g_show(fb2k::formatTrackList(pl), name);
+
+}
 
 class mainmenu_commands_sample : public mainmenu_commands {
 public:
@@ -32,6 +67,8 @@ public:
 		cmd_listcontrol_ownerdata,
 		cmd_listcontrol_advanced,
 		cmd_playback_stream_capture,
+		cmd_exp_l,
+		cmd_exp_c,
 		cmd_total
 	};
 	t_uint32 get_command_count() override {
@@ -47,6 +84,8 @@ public:
 			case cmd_listcontrol_ownerdata: return guid_listcontrol_ownerdata;
 			case cmd_listcontrol_advanced: return guid_listcontrol_advanced;
 			case cmd_playback_stream_capture: return guid_playback_stream_capture;
+			case cmd_exp_l: return guid_exp_l;
+			case cmd_exp_c: return guid_exp_c;
 			default: uBugCheck(); // should never happen unless somebody called us with invalid parameters - bail
 		}
 	}
@@ -59,6 +98,8 @@ public:
 			case cmd_listcontrol_ownerdata: p_out = "Owner-data CListControl demo"; break;
 			case cmd_listcontrol_advanced: p_out = "Advanced CListControl demo"; break;
 			case cmd_playback_stream_capture: p_out = "Playback stream capture demo"; break;
+			case cmd_exp_l: p_out = "Export playlist links"; break;
+			case cmd_exp_c: p_out = "Export playlist copies"; break;
 			default: uBugCheck(); // should never happen unless somebody called us with invalid parameters - bail
 		}
 	}
@@ -71,6 +112,8 @@ public:
 			case cmd_listcontrol_ownerdata: p_out = "Runs Owner Data CListControl demo."; return true;
 			case cmd_listcontrol_advanced: p_out = "Runs Advanced CListControl demo."; return true;
 			case cmd_playback_stream_capture: p_out = "Toggles playback stream capture operation."; return true;
+			case cmd_exp_l: p_out = "Export playlist to directory+m3u8  using linking"; return true;
+			case cmd_exp_c: p_out = "Export playlist to directory+m3u8 using copying"; return true;
 			default: return false;
 		}
 	}
@@ -99,6 +142,12 @@ public:
 				break;
 			case cmd_playback_stream_capture:
 				ToggleCapture();
+				break;
+			case cmd_exp_l:
+				ExportPlaylistLinked();
+				break;
+			case cmd_exp_c:
+				ExportPlaylistCopy();
 				break;
 			default:
 				uBugCheck(); // should never happen unless somebody called us with invalid parameters - bail

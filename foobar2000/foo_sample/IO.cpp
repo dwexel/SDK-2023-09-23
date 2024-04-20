@@ -18,7 +18,7 @@ namespace { // anon namespace local classes for good measure
 	class tpc_copyFiles : public threaded_process_callback {
 	public:
 		tpc_copyFiles ( metadb_handle_list_cref items, const char * pathTo ) : m_pathTo(pathTo), m_outFS(filesystem::get(pathTo)) {
-			m_lstFiles.init_from_list( items );
+			m_lstFiles.init_from_list_dup( items );
 		}
 
 		void on_init(ctx_t p_wnd) override {
@@ -268,7 +268,7 @@ namespace { // anon namespace local classes for good measure
 	class tpc_linkFiles : public threaded_process_callback {
 	public:
 		tpc_linkFiles(metadb_handle_list_cref items, const char* pathTo) : m_pathTo(pathTo), m_outFS(filesystem::get(pathTo)) {
-			m_lstFiles.init_from_list(items);
+			m_lstFiles.init_from_list_dup(items);
 		}
 
 		void on_init(ctx_t p_wnd) override {

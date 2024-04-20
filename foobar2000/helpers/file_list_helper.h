@@ -11,6 +11,8 @@ namespace file_list_helper
 		static t_size g_get_count(const list_base_const_t<metadb_handle_ptr> & p_list, t_size max = ~0);
 
 		void init_from_list(const list_base_const_t<metadb_handle_ptr> & p_list);
+		void init_from_list_dup(const list_base_const_t<metadb_handle_ptr> & p_list);
+
 		void init_from_list_display(const list_base_const_t<metadb_handle_ptr> & p_list);
 
 		t_size get_count() const;

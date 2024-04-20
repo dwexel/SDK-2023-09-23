@@ -48,6 +48,17 @@ namespace file_list_helper
 		file_list_remove_duplicates(m_data);
 	}
 
+	// removing duplicates from the file list also messes with the order of the file list
+	void file_list_from_metadb_handle_list::init_from_list_dup(const list_base_const_t<metadb_handle_ptr>& p_list)
+	{
+		m_data.free_all();
+
+		t_size n, m = p_list.get_count();
+		for (n = 0;n < m;n++) {
+			_add(p_list.get_item(n)->get_path());
+		}
+	}
+
 	void file_list_from_metadb_handle_list::init_from_list_display(const list_base_const_t<metadb_handle_ptr> & p_list)
 	{
 		m_data.free_all();
