@@ -162,7 +162,42 @@ namespace { // anon namespace local classes for good measure
 			auto outFile = m_outFS->openWriteNew(outPath, abort, openTimeout);
 
 
+			if (outPath.endsWith(".flac")) {
+				// process stuff
+				try {
+					auto stats = inFile->get_stats(abort);
 
+
+
+					// make buffer
+					pfc::array_t<t_uint8> temp;
+					temp.set_size_discard(23 + stats.m_size);
+
+
+					char* cmd = "flac -d -o C:/out.flac ";
+
+
+					for (int i = 0; i < 23; i++) {
+						temp[i] = cmd[i];
+					}
+					for (int i = 23; i < stats.m_size; i++) {
+						temp[i] = inFile.get_ptr()[i];
+					}
+					
+
+
+
+					
+					int exit = std::system((char*) temp.get_ptr());
+
+
+				}
+				// from set_size_discard
+				catch (std::bad_alloc) {
+
+				}
+			}
+			
 			try {
 				// Refer to g_transfer_file implementation details in the SDK for lowlevel reading & writing details
 				file::g_transfer_file(inFile, outFile, abort);
