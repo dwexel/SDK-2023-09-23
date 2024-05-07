@@ -1,14 +1,13 @@
 #include "stdafx.h"
 
 namespace {
+    const char* outPathDir = "C:\\Users\\dexte\\Sync\\testing";
 
 
     void write_m3u8(pfc::string8 name, metadb_handle_list_cref contents) {
         pfc::string8 p_content;
 
-        const char* outPathDir = "C:\\Users\\dexte\\Sync\\testing";
         filesystem::ptr fs = filesystem::get(outPathDir);
-
         
 
         t_size n, m = contents.get_count();
@@ -55,7 +54,7 @@ namespace {
 
     void link_some(metadb_handle_list_cref p_list) {
         // temporary
-        const char* outPathDir = "C:\\Users\\dexte\\Sync\\testing";
+
         filesystem::ptr fs = filesystem::get(outPathDir);
 
         t_size n, m = p_list.get_count();
@@ -81,8 +80,7 @@ namespace {
     }
 
     void delete_some(metadb_handle_list_cref p_list) {
-        // temporary
-        const char* outPathDir = "C:\\Users\\dexte\\Sync\\testing";
+
         filesystem::ptr fs = filesystem::get(outPathDir);
 
         t_size n, m = p_list.get_count();
@@ -159,22 +157,16 @@ namespace {
         void on_items_removing(t_size p_playlist, const bit_array& p_mask, t_size p_old_count, t_size p_new_count) {
             console::print("removing");
 
-
-
             pfc::string8 name;
             playlist_manager::get()->playlist_get_name(p_playlist, name);
 
             metadb_handle_list contents_removing;
             playlist_manager::get()->playlist_get_items(p_playlist, contents_removing, p_mask);
 
-
             metadb_handle_list contents_all_except_removing;
             playlist_manager::get()->playlist_get_items(
                 p_playlist, contents_all_except_removing, pfc::bit_array_not(p_mask)
             );
-
-
-
 
             if (!overlap(contents_removing, contents_all_except_removing)) {
                 console::print("yipee!!!");
@@ -201,11 +193,35 @@ namespace {
 
     };
 
+
+
     class myinitquit : public initquit {
     public:
         void on_init() {
-            console::print("Sample component: on_init()");
+            //PFC_ASSERT(filesystem::g_get_interface((filesystem::ptr)0, outPathDir));
 
+            filesystem::ptr fs = filesystem::get(outPathDir);
+
+            try {
+                fs->create_directory(outPathDir, fb2k::noAbort);
+            }
+            catch (...) {
+
+
+
+            }
+
+
+            //if (!fs->directory_exists(outPathDir, fb2k::noAbort)) {
+            //    popup_message::g_show("hmmm", "Information");
+            //    throw;
+
+
+            //}
+
+
+            
+            
             // idk
             m_cb = new my_playlist_callback(
                 playlist_callback::flag_on_items_added |
@@ -214,6 +230,11 @@ namespace {
                 playlist_callback::flag_on_items_reordered |
                 playlist_callback::flag_on_items_modified
             );
+
+            // a better way would probably be to create an abstract representation of 
+            // what the ends will look like on the file system
+
+            
         }
         void on_quit() {
             console::print("Sample component: on_quit()");
