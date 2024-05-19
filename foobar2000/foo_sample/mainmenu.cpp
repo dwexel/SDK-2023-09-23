@@ -73,13 +73,15 @@ void make_playlist(const char* baseDir, pfc::string8 name, metadb_handle_list_cr
 
 
 	for (n = 0; n < m; n++) {
+		
 
 		const char* inPath = p_list.get_item(n)->get_path();
 
 		fs->extract_filename_ext(inPath, inFN);
 
 		p_content.add_string(name);
-		p_content.add_char(fs->pathSeparator());
+		// gotta be forward slash because .
+		p_content.add_char('/');
 		p_content.add_string(inFN, inFN.get_length());
 		p_content.add_char('\n');
 	}
